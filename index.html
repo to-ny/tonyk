@@ -1,0 +1,508 @@
+---
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TONYK</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:          #06090f;
+      --surface:     #eee8d5;
+      --surface2:    #e4ddc9;
+      --border:      #d5cebf;
+      --border-mid:  #bfb8a8;
+      --border-hi:   #a8a090;
+      --accent:      #b58900;
+      --text:        #073642;
+      --text-mid:    #586e75;
+      --text-dim:    #93a1a1;
+      --font-px:     'VT323', 'Courier New', monospace;
+      --font-mono:   'IBM Plex Mono', 'Courier New', monospace;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    * { cursor: none !important; }
+
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    /* Scanlines */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(0,0,0,0.016) 3px,
+        rgba(0,0,0,0.016) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── CANVAS */
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* ── CURSOR */
+    #cur-dot {
+      position: fixed;
+      width: 7px; height: 7px;
+      background: var(--accent);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 99999;
+      transform: translate(-50%, -50%);
+    }
+
+    #cur-ring {
+      position: fixed;
+      width: 26px; height: 26px;
+      border: 1.5px solid var(--accent);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 99998;
+      transform: translate(-50%, -50%);
+      opacity: 0.55;
+      transition: width 0.18s, height 0.18s, opacity 0.18s;
+    }
+
+    #cur-ring.clicking { width: 14px; height: 14px; opacity: 1; }
+
+    /* ── HEADER */
+    .site-header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      padding: 22px 36px 0;
+      z-index: 10;
+    }
+
+    .site-name {
+      font-family: var(--font-px);
+      font-size: 64px;
+      line-height: 1;
+      letter-spacing: 3px;
+      color: #ddd8cc;
+    }
+
+    .site-name .slash { color: var(--accent); }
+
+    .cursor-blink {
+      display: inline-block;
+      width: 4px;
+      height: 0.58em;
+      background: var(--accent);
+      vertical-align: middle;
+      margin-left: 2px;
+      position: relative;
+      top: -3px;
+      animation: blink 1.05s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    .h-rule {
+      margin-top: 12px;
+      height: 1px;
+      background: repeating-linear-gradient(
+        90deg,
+        rgba(168,160,144,0.4) 0 5px,
+        transparent 5px 9px
+      );
+    }
+
+    /* ── CARD STAGE */
+    .card-stage {
+      position: fixed;
+      top: 90px;
+      bottom: 0;
+      left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    /* ── ENTRY CARD */
+    .entry {
+      position: absolute;
+      width: 560px;
+      max-width: 88vw;
+      background: #111b2e;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-left: 3px solid var(--accent);
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Spotify embed */
+    .entry-embed iframe {
+      display: block;
+      width: 100%;
+      border: none;
+    }
+
+    /* Note */
+    .entry-note {
+      padding: 16px 24px;
+      border-top: 1px dashed rgba(255,255,255,0.08);
+      font-size: 13px;
+      color: rgba(221,216,204,0.55);
+      font-style: italic;
+      line-height: 1.7;
+    }
+
+    .entry-note .arrow { color: var(--accent); font-style: normal; }
+
+    /* Date */
+    .entry-meta {
+      padding: 0 24px 14px;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: rgba(221,216,204,0.25);
+      text-align: right;
+    }
+
+    /* ── SIDE NAV */
+    .side-btn {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 10;
+      background: rgba(6,9,15,0.5);
+      font-family: var(--font-mono);
+      font-size: 18px;
+      color: rgba(221,216,204,0.5);
+      padding: 18px 12px;
+      cursor: pointer;
+      line-height: 1;
+      user-select: none;
+      transition: color 0.18s, border-color 0.18s, background 0.18s;
+    }
+
+    .side-btn.left {
+      left: 0;
+      border: 1px solid rgba(168,160,144,0.25);
+      border-left: none;
+    }
+
+    .side-btn.right {
+      right: 0;
+      border: 1px solid rgba(168,160,144,0.25);
+      border-right: none;
+    }
+
+    .side-btn:hover {
+      color: var(--accent);
+      border-color: rgba(181,137,0,0.5);
+      background: rgba(6,9,15,0.75);
+    }
+
+    /* ── FOOTER CREDIT */
+    .site-footer {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: rgba(221,216,204,0.55);
+      z-index: 10;
+      white-space: nowrap;
+    }
+
+    .site-footer a {
+      color: rgba(181,137,0,0.8);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .site-footer a:hover { color: var(--accent); }
+
+    /* ── MOBILE */
+    @media (max-width: 540px) {
+      .site-header { padding: 16px 20px 0; }
+      .site-name   { font-size: 48px; }
+      .card-stage  { top: 76px; bottom: 0; }
+      .entry-note, .entry-meta { padding-left: 18px; padding-right: 18px; }
+    }
+  </style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div id="cur-dot"></div>
+<div id="cur-ring"></div>
+
+<header class="site-header">
+  <div class="site-name"><span class="slash">>></span> TONYK<span class="cursor-blink"></span></div>
+  <div class="h-rule"></div>
+</header>
+
+<main class="card-stage" id="cardStage">
+  {% assign songs = site.songs | sort: "date" | reverse %}
+  {% for song in songs %}
+  <article class="entry">
+    <div class="entry-embed">
+      <iframe
+        src="{{ song.url | replace: 'open.spotify.com/', 'open.spotify.com/embed/' }}?utm_source=generator&theme=0"
+        height="{% if song.url contains '/album/' or song.url contains '/playlist/' %}352{% else %}152{% endif %}"
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        loading="lazy">
+      </iframe>
+    </div>
+    <div class="entry-note"><span class="arrow">▸ </span>{{ song.content | strip_html | strip }}</div>
+    <div class="entry-meta">{{ song.date | date: "%Y-%m-%d" }}</div>
+  </article>
+  {% endfor %}
+</main>
+
+<button class="side-btn left"  id="prevBtn">‹</button>
+<button class="side-btn right" id="nextBtn">›</button>
+<footer class="site-footer">Made with ❤️ by <a href="https://to-ny.github.io/" target="_blank" rel="noopener">to-ny</a></footer>
+
+<script>
+  // ── CARDS — rendered by Jekyll, JS handles navigation only
+  const stage = document.getElementById('cardStage');
+  const cards = Array.from(stage.querySelectorAll('.entry'));
+  let current = 0;
+  let busy    = false;
+  const TRANSIT = 420;
+
+  // Set initial positions
+  cards.forEach((card, i) => {
+    card.style.transition   = 'none';
+    card.style.transform    = i === 0 ? 'translateX(0)'   : 'translateX(65vw)';
+    card.style.opacity      = i === 0 ? '1'               : '0';
+    card.style.pointerEvents = i === 0 ? 'auto'           : 'none';
+  });
+
+  // Activate first card instantly
+
+
+  function navigate(dir) {
+    if (busy) return;
+    const next = (current + dir + DATA.length) % DATA.length;
+    if (next === current) return;
+    busy = true;
+
+    const leaving  = cards[current];
+    const entering = cards[next];
+    const T = `${TRANSIT}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+    const O = `${TRANSIT}ms ease`;
+
+    // Slide current card out
+    leaving.style.transition   = `transform ${T}, opacity ${O}`;
+    leaving.style.transform    = dir > 0 ? 'translateX(-65vw)' : 'translateX(65vw)';
+    leaving.style.opacity      = '0';
+    leaving.style.pointerEvents = 'none';
+
+    // Position incoming card off-screen (no transition)
+    entering.style.transition  = 'none';
+    entering.style.transform   = dir > 0 ? 'translateX(65vw)' : 'translateX(-65vw)';
+    entering.style.opacity     = '0';
+
+    // Then animate it in
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      entering.style.transition  = `transform ${T}, opacity ${O}`;
+      entering.style.transform   = 'translateX(0)';
+      entering.style.opacity     = '1';
+      entering.style.pointerEvents = 'auto';
+    }));
+
+    current = next;
+    setTimeout(() => { busy = false; }, TRANSIT + 60);
+  }
+
+  document.getElementById('prevBtn').addEventListener('click', () => navigate(-1));
+  document.getElementById('nextBtn').addEventListener('click', () => navigate(1));
+
+  // Keyboard
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') navigate(1);
+    if (e.key === 'ArrowLeft')  navigate(-1);
+  });
+
+  // Touch swipe
+  let touchX = null;
+  document.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) navigate(dx < 0 ? 1 : -1);
+    touchX = null;
+  }, { passive: true });
+
+  // ── STARFIELD + FIREWORKS
+  const canvas = document.getElementById('bg-canvas');
+  const ctx    = canvas.getContext('2d');
+  let stars = [], sparks = [];
+
+  function resizeCanvas() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    initStars();
+  }
+
+  function starColor() {
+    const r = Math.random();
+    if (r < 0.62) return '#fffef4';
+    if (r < 0.78) return '#fff6d8';
+    if (r < 0.88) return '#e8f2ff';
+    if (r < 0.95) return '#f5c060';
+    return '#c8e0ff';
+  }
+
+  function initStars() {
+    stars = Array.from({ length: 230 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: 0.25 + Math.random() * 1.7,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.003 + Math.random() * 0.02,
+      base:  0.25 + Math.random() * 0.45,
+      color: starColor()
+    }));
+  }
+
+  function drawStars() {
+    stars.forEach(s => {
+      s.phase += s.speed;
+      const t  = (Math.sin(s.phase) + 1) / 2;
+      const op = s.base * (0.4 + t * 0.6);
+      const r  = s.r   * (0.7 + t * 0.4);
+      ctx.globalAlpha = op;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = s.color;
+      ctx.fill();
+      if (s.r > 1.1) {
+        ctx.globalAlpha = op * 0.22;
+        const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * 5);
+        g.addColorStop(0, s.color);
+        g.addColorStop(1, 'transparent');
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, r * 5, 0, Math.PI * 2);
+        ctx.fillStyle = g;
+        ctx.fill();
+      }
+    });
+  }
+
+  const FW_PALETTES = [
+    ['#f5a324', '#ffd060', '#fff4c0'],
+    ['#268bd2', '#56b4ff', '#c0e8ff'],
+    ['#cb4b16', '#ff7040', '#ffd0b0'],
+    ['#6c71c4', '#a090ff', '#d8d0ff'],
+    ['#2aa198', '#40d8cc', '#a0fff8'],
+    ['#859900', '#b8d800', '#eeffa0'],
+    ['#d33682', '#ff60b0', '#ffd0ee'],
+  ];
+
+  function spawnFirework(x, y) {
+    const palette = FW_PALETTES[Math.floor(Math.random() * FW_PALETTES.length)];
+    const count   = 60 + Math.floor(Math.random() * 30);
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.25;
+      const speed = 1.8 + Math.random() * 5;
+      sparks.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1,
+        decay: 0.009 + Math.random() * 0.013,
+        color: palette[Math.floor(Math.random() * palette.length)],
+        size:  1.0 + Math.random() * 2,
+        grav:  0.05 + Math.random() * 0.035,
+        trail: []
+      });
+    }
+  }
+
+  function drawFireworks() {
+    sparks = sparks.filter(p => p.life > 0);
+    sparks.forEach(p => {
+      p.trail.push({ x: p.x, y: p.y });
+      if (p.trail.length > 8) p.trail.shift();
+      p.x += p.vx; p.y += p.vy;
+      p.vy += p.grav; p.vx *= 0.97;
+      p.life -= p.decay;
+      p.trail.forEach((pt, ti) => {
+        ctx.globalAlpha = (ti / p.trail.length) * p.life * 0.4;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, p.size * (ti / p.trail.length) * 0.8, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+      });
+      ctx.globalAlpha = p.life;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+    });
+  }
+
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  (function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 1;
+    drawStars();
+    drawFireworks();
+    requestAnimationFrame(loop);
+  })();
+
+  // ── CURSOR
+  const dot  = document.getElementById('cur-dot');
+  const ring = document.getElementById('cur-ring');
+  let rx = 0, ry = 0, cx = 0, cy = 0;
+
+  document.addEventListener('mousemove', e => {
+    cx = e.clientX; cy = e.clientY;
+    dot.style.left = cx + 'px';
+    dot.style.top  = cy + 'px';
+  });
+
+  (function ringLoop() {
+    rx += (cx - rx) * 0.14;
+    ry += (cy - ry) * 0.14;
+    ring.style.left = rx + 'px';
+    ring.style.top  = ry + 'px';
+    requestAnimationFrame(ringLoop);
+  })();
+
+  document.addEventListener('mousedown', () => ring.classList.add('clicking'));
+  document.addEventListener('mouseup',   () => ring.classList.remove('clicking'));
+
+  // Firework on every click
+  document.addEventListener('click', e => {
+    spawnFirework(e.clientX, e.clientY);
+  });
+</script>
+</body>
+</html>
