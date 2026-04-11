@@ -269,8 +269,8 @@
   <article class="entry">
     <div class="entry-embed">
       <iframe
-        src="{{ song.url | replace: 'open.spotify.com/', 'open.spotify.com/embed/' }}?utm_source=generator&theme=0"
-        height="{% if song.url contains '/album/' or song.url contains '/playlist/' %}352{% else %}152{% endif %}"
+        src="{{ song.spotify | replace: 'open.spotify.com/', 'open.spotify.com/embed/' }}?utm_source=generator&theme=0"
+        height="{% if song.spotify contains '/album/' or song.spotify contains '/playlist/' %}352{% else %}152{% endif %}"
         allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
         loading="lazy">
       </iframe>
